@@ -1,5 +1,6 @@
 package guru.sfg.brewery.springframework.services;
 
+import guru.sfg.brewery.model.BeerOrderDto;
 import guru.sfg.brewery.springframework.domain.BeerOrder;
 import guru.sfg.brewery.springframework.domain.BeerOrderEventEnum;
 import guru.sfg.brewery.springframework.domain.BeerOrderStatusEnum;
@@ -21,10 +22,10 @@ import java.util.UUID;
 public class BeerOrderManagerImpl implements BeerOrderManager {
 
     private final StateMachineFactory<BeerOrderStatusEnum, BeerOrderEventEnum> stateMachineFactory;
-    private final BeerOrderRepository BeerOrderRepository;
     private final BeerOrderStateChangeInterceptor stateChangeInterceptor;
 
     public static final String ORDER_ID_HEADER = "ORDER_ID_HEADER";
+    private final BeerOrderRepository beerOrderRepository;
 
     @Transactional
     @Override
@@ -32,7 +33,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
         beerOrder.setId(null);
         beerOrder.setOrderStatus(BeerOrderStatusEnum.NEW);
 
-        BeerOrder savedBeerOrder = BeerOrderRepository.save(beerOrder);
+        BeerOrder savedBeerOrder = beerOrderRepository.save(beerOrder);
 
         sendBeerOrderEvent(savedBeerOrder, BeerOrderEventEnum.VALIDATE_ORDER);
         return savedBeerOrder;
@@ -66,16 +67,51 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 
     @Override
     public void processValidationResult(UUID orderId, Boolean isValid) {
-        BeerOrder beerOrder = BeerOrderRepository.findById(orderId).orElse(null);
+        BeerOrder beerOrder = beerOrderRepository.findById(orderId).orElse(null);
 
         if (isValid){
             sendBeerOrderEvent(beerOrder, BeerOrderEventEnum.VALIDATION_PASSED);
 
-            BeerOrder validatedOrder = BeerOrderRepository.findById(orderId).orElse(null);
+            BeerOrder validatedOrder = beerOrderRepository.findById(orderId).orElse(null);
             sendBeerOrderEvent(validatedOrder, BeerOrderEventEnum.ALLOCATE_ORDER);
 
         }else{
             sendBeerOrderEvent(beerOrder, BeerOrderEventEnum.VALIDATION_FAILED);
         }
+    }
+
+    @Override
+    public void beerOrderAllocationPassed(BeerOrderDto beerOrderDto) {
+        BeerOrder beerOrder = beerOrderRepository.getOne(beerOrderDto.getId());
+        sendBeerOrderEvent(beerOrder, BeerOrderEventEnum.ALLOCATION_SUCCESS);
+        updateAllocatedQuantity(beerOrderDto, beerOrder);
+    }
+
+    @Override
+    public void beerOrderAllocationPendingInventory(BeerOrderDto beerOrderDto) {
+        BeerOrder beerOrder = beerOrderRepository.getOne(beerOrderDto.getId());
+        sendBeerOrderEvent(beerOrder, BeerOrderEventEnum.ALLOCATION_NO_INVENTORY);
+        updateAllocatedQuantity(beerOrderDto, beerOrder);
+
+    }
+
+    private void updateAllocatedQuantity(BeerOrderDto beerOrderDto, BeerOrder beerOrder) {
+        BeerOrder allocatedOrder = beerOrderRepository.getOne(beerOrderDto.getId());
+
+        allocatedOrder.getBeerOrderLines().forEach(beerOrderLine -> {
+            beerOrderDto.getBeerOrderLines().forEach(beerOrderLineDto -> {
+                if(beerOrderLine.getId().equals(beerOrderLineDto.getId())){
+                    beerOrderLine.setQuantityAllocated(beerOrderLineDto.getAllocatedQuantity());
+                }
+            });
+        });
+
+        beerOrderRepository.saveAndFlush(beerOrder);
+    }
+
+    @Override
+    public void beerOrderAllocationFailed(BeerOrderDto beerOrderDto) {
+        BeerOrder beerOrder = beerOrderRepository.getOne(beerOrderDto.getId());
+        sendBeerOrderEvent(beerOrder, BeerOrderEventEnum.ALLOCATION_FAILED);
     }
 }
