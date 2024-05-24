@@ -14,7 +14,6 @@ import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -30,7 +29,6 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     public static final String ORDER_ID_HEADER = "ORDER_ID_HEADER";
     private final BeerOrderRepository beerOrderRepository;
 
-    @Transactional
     @Override
     public BeerOrder newBeerOrder(BeerOrder beerOrder) {
         beerOrder.setId(null);
@@ -68,7 +66,6 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
         return stateMachine;
     }
 
-    @Transactional
     @Override
     public void processValidationResult(UUID orderId, Boolean isValid) {
         Optional<BeerOrder> beerOrderOptional = beerOrderRepository.findById(orderId);

@@ -6,11 +6,9 @@ import guru.sfg.brewery.springframework.bootstrap.BeerOrderBootStrap;
 import guru.sfg.brewery.springframework.domain.Customer;
 import guru.sfg.brewery.springframework.repositories.BeerOrderRepository;
 import guru.sfg.brewery.springframework.repositories.CustomerRepository;
-import guru.sfg.brewery.springframework.services.BeerOrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +35,6 @@ public class TastingRoomService {
         beerUpcs.add(BeerOrderBootStrap.BEER_3_UPC);
     }
 
-    @Transactional
     @Scheduled(fixedRate = 2000) //run every 2 seconds
     public void placeTastingRoomOrder(){
 
